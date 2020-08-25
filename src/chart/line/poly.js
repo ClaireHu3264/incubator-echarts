@@ -1,21 +1,21 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one
-* or more contributor license agreements.  See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership.  The ASF licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License.  You may obtain a copy of the License at
-*
-*   http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing,
-* software distributed under the License is distributed on an
-* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-* KIND, either express or implied.  See the License for the
-* specific language governing permissions and limitations
-* under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
 // Poly path support NaN point
 
@@ -40,7 +40,7 @@ function isPointNull(p) {
 
 function drawSegment(
     ctx, points, start, segLen, allLen,
-    dir, smoothMin, smoothMax, smooth, smoothMonotone, connectNulls
+    dir, smoothMin, smoothMax, smooth, smoothMonotone, connectNulls, shape
 ) {
     // if (smoothMonotone == null) {
     //     if (isMono(points, 'x')) {
@@ -63,8 +63,7 @@ function drawSegment(
     // }
     if (smoothMonotone === 'none' || !smoothMonotone) {
         return drawNonMono.apply(this, arguments);
-    }
-    else {
+    } else {
         return drawMono.apply(this, arguments);
     }
 }
@@ -130,8 +129,7 @@ function drawMono(
 
         if (idx === start) {
             ctx[dir > 0 ? 'moveTo' : 'lineTo'](p[0], p[1]);
-        }
-        else {
+        } else {
             if (smooth > 0) {
                 var prevP = points[prevIdx];
                 var dim = smoothMonotone === 'y' ? 1 : 0;
@@ -150,8 +148,7 @@ function drawMono(
                     cp1[0], cp1[1],
                     p[0], p[1]
                 );
-            }
-            else {
+            } else {
                 ctx.lineTo(p[0], p[1]);
             }
         }
@@ -170,7 +167,7 @@ function drawMono(
  */
 function drawNonMono(
     ctx, points, start, segLen, allLen,
-    dir, smoothMin, smoothMax, smooth, smoothMonotone, connectNulls
+    dir, smoothMin, smoothMax, smooth, smoothMonotone, connectNulls, shape
 ) {
     var prevIdx = 0;
     var idx = start;
@@ -190,8 +187,7 @@ function drawNonMono(
         if (idx === start) {
             ctx[dir > 0 ? 'moveTo' : 'lineTo'](p[0], p[1]);
             v2Copy(cp0, p);
-        }
-        else {
+        } else {
             if (smooth > 0) {
                 var nextIdx = idx + dir;
                 var nextP = points[nextIdx];
@@ -209,8 +205,7 @@ function drawNonMono(
                 // Last point
                 if (!nextP || isPointNull(nextP)) {
                     v2Copy(cp1, p);
-                }
-                else {
+                } else {
                     // If next data is null in not connect case
                     if (isPointNull(nextP) && !connectNulls) {
                         nextP = p;
@@ -224,8 +219,7 @@ function drawNonMono(
                         var dim = smoothMonotone === 'x' ? 0 : 1;
                         lenPrevSeg = Math.abs(p[dim] - prevP[dim]);
                         lenNextSeg = Math.abs(p[dim] - nextP[dim]);
-                    }
-                    else {
+                    } else {
                         lenPrevSeg = vec2.dist(p, prevP);
                         lenNextSeg = vec2.dist(p, nextP);
                     }
@@ -246,10 +240,24 @@ function drawNonMono(
                     cp1[0], cp1[1],
                     p[0], p[1]
                 );
+                if (shape) {
+                    if (k === 1) {
+                        shape.bezierCurveArr = [
+                            [cp0[0], cp0[1],
+                                cp1[0], cp1[1],
+                                p[0], p[1]
+                            ]
+                        ]
+                    } else {
+                        shape.bezierCurveArr.push([cp0[0], cp0[1],
+                            cp1[0], cp1[1],
+                            p[0], p[1]
+                        ])
+                    }
+                }
                 // cp0 of next segment
                 scaleAndAdd(cp0, p, v, smooth * ratioNextSeg);
-            }
-            else {
+            } else {
                 ctx.lineTo(p[0], p[1]);
             }
         }
@@ -311,7 +319,7 @@ export var Polyline = Path.extend({
 
     brush: fixClipWithShadow(Path.prototype.brush),
 
-    buildPath: function (ctx, shape) {
+    buildPath: function(ctx, shape) {
         var points = shape.points;
 
         var i = 0;
@@ -336,7 +344,7 @@ export var Polyline = Path.extend({
             i += drawSegment(
                 ctx, points, i, len, len,
                 1, result.min, result.max, shape.smooth,
-                shape.smoothMonotone, shape.connectNulls
+                shape.smoothMonotone, shape.connectNulls, shape
             ) + 1;
         }
     }
@@ -365,7 +373,7 @@ export var Polygon = Path.extend({
 
     brush: fixClipWithShadow(Path.prototype.brush),
 
-    buildPath: function (ctx, shape) {
+    buildPath: function(ctx, shape) {
         var points = shape.points;
         var stackedOnPoints = shape.stackedOnPoints;
 
@@ -395,8 +403,7 @@ export var Polygon = Path.extend({
                 smoothMonotone, shape.connectNulls
             );
             drawSegment(
-                ctx, stackedOnPoints, i + k - 1, k, len,
-                -1, stackedOnBBox.min, stackedOnBBox.max, shape.stackedOnSmooth,
+                ctx, stackedOnPoints, i + k - 1, k, len, -1, stackedOnBBox.min, stackedOnBBox.max, shape.stackedOnSmooth,
                 smoothMonotone, shape.connectNulls
             );
             i += k + 1;
